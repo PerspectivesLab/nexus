@@ -18,6 +18,9 @@ _deps
 # Prerequisites
 *.d
 
+# Build folder
+src/build-nxsbuild
+
 # Compiled Object files
 *.slo
 *.lo

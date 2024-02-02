@@ -56,6 +56,7 @@ int main(int argc, char *argv[]) {
 	bool center = false;
 
 
+    bool tileset = false;
 	bool point_cloud = false;
 	bool normals = false;
 	bool no_normals = false;
@@ -106,6 +107,7 @@ int main(int argc, char *argv[]) {
 
 	//format options
 	opt.addSwitch('p', "point cloud", "generate a multiresolution point cloud (needed only to discard faces)", &point_cloud);
+    opt.addSwitch('e', "export tile", "export model as a 3D tile", &tileset);
 
 	opt.addSwitch('N', "normals", "force per vertex normals, even in point clouds", &normals);
 	opt.addSwitch('n', "no normals", "do not store per vertex normals", &no_normals);
@@ -296,7 +298,13 @@ int main(int argc, char *argv[]) {
 			treecloud->setTrianglesPerBlock(node_size);
 
 		builder.create(tree, stream,  top_node_size);
-		builder.save(output);
+
+        if(!tileset) {
+            builder.save(output);
+        }
+        else {
+            builder.exportAsTileset("Mesh.gltf");
+        }
 
 	} catch(QString error) {
 		cerr << "Fatal error: " << qPrintable(error) << endl;

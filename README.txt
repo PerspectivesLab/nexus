@@ -1,3 +1,18 @@
+# Nexus 3D tiles export install
+
+## Install QtCreator version 5.15.2
+
+## Clone nexus and vcglib in the same folder
+
+```bash 
+git clone https://github.com/PerspectivesLab/nexus.git
+git clone https://github.com/cnr-isti-vclab/vcglib.git 
+```
+## Open nexus\src\nxsbuild\nxsbuild.pro with QtCreator
+
+## Compile
+
+-----------------------------------------------------------------------------------------
 # Nexus
 
 Nexus is a c++/javascript library for creation and visualization of a batched multiresolution 3D model structure.

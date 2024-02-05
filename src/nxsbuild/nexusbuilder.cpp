@@ -857,7 +857,7 @@ void NexusBuilder::save(QString filename) {
 
 	//cout << "Saving to file " << qPrintable(filename) << endl;
 	//cout << "Input squaresize " << sqrt(input_pixels) <<  " Output size " << sqrt(output_pixels) << "\n";
-
+    auto test = nodes[0].last_patch();
 	file.setFileName(filename);
 	if(!file.open(QIODevice::ReadWrite | QIODevice::Truncate))
 		throw QString("could not open file " + filename);
@@ -1023,13 +1023,13 @@ void NexusBuilder::save(QString filename) {
 			QFile::remove(QString("nexus_tmp_tex%1.png").arg(i));
 		}
 	cout << "Saving to file " << qPrintable(filename) << endl;
+    auto test2 = nodes[0].last_patch();
 	file.close();
 }
 
 void NexusBuilder::exportAsTileset(QString filename) {
 
     TilesetBuilder tileset(*this);
-
     tileset.build();
 
     if(header.signature.vertex.hasNormals() && header.signature.face.hasIndex())

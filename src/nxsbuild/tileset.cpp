@@ -6,7 +6,8 @@ void TilesetBuilder::build() {
     }
 
     _tileset.root = _tiles[0];
-    auto test = _tileset.root.boundingVolume.toJson();
+    nlohmann::json test = _tileset.root.boundingVolume.toJson();
+    std::string test2 =  test.dump();
     auto testZ = 2;
 }
 
@@ -17,14 +18,15 @@ void TilesetBuilder::makeTile(int tileIndex) {
     // 1. Extract bounding volume and convert it in 3D tiles boundingVolume specification.
     auto box = _nexusStructure.boxes[tileIndex].box;
 
+    uint32_t index2 = _nexusStructure.nodes[tileIndex].last_patch();
     // 2. Extract children;
-    nx::Node node = _nexusStructure.nodes[tileIndex];
+    nx::Node &node = _nexusStructure.nodes[tileIndex];
 
     // il y a quelques chose que l'on ne comprends pas sur le fonctionnement des patchs.
     // pourquoi node.last_patch() renvoie genre 127 ???
     // -- piste à suivre : --> fonction savetileset à comparer avec save() de nexusBuilder
-    // --dfmdlfmldf
 
+    uint32_t index = node.last_patch();
     for(int i = node.first_patch; i < node.last_patch(); i++) {
         const nx::Patch &patch = _nexusStructure.patches[i];
         if(!(patch.node == _nexusStructure.nodes.size()-1)){

@@ -11,10 +11,9 @@ struct BoundingVolume
     float box[12];
 
     nlohmann::json toJson() {
-        nlohmann::json j = {
+        nlohmann::json j =
             {"BoundingVolume",
-                {"box", box}}
-        };
+                            {{"box", box}}};
 
         return j;
     }
@@ -24,9 +23,10 @@ struct Content
 {
     BoundingVolume boundingVolume;
     std::string uri;
-    // nlohmann::json toJson() {
-
-    // }
+    nlohmann::json toJson() {
+        nlohmann::json j;
+        return j;
+    }
 };
 
 struct Tile
@@ -50,11 +50,11 @@ class TilesetBuilder
 {
 public:
     TilesetBuilder() = delete;
-    TilesetBuilder(const NexusBuilder &nexus) : _nexusStructure(nexus) {};
+    TilesetBuilder(NexusBuilder &nexus) : _nexusStructure(nexus) {};
     void build();
 private:
     void makeTile(int tile_index);
-    const NexusBuilder& _nexusStructure;
+    NexusBuilder& _nexusStructure;
     std::vector<Tile> _tiles;
     Tileset _tileset;
 };

@@ -287,7 +287,7 @@ bool GltfBuilder::writeNode(int node_index, const QString &filename) {
 
 #define DEBUG_TEXTURE
 #ifdef DEBUG_TEXTURE
-                QString testFolder("testFolder");
+                QString testFolder("textureTestFolder");
                 QDir dir;
                 dir.mkdir(testFolder);
                 QString texfileName = QString("%1/%2.jpg").arg(testFolder).arg(node_index);
@@ -329,14 +329,18 @@ bool GltfBuilder::writeNode(int node_index, const QString &filename) {
 
     QString finalName = QString("mesh%1.gltf").arg(node_index);
     QString finalName2 = QString("mesh%1.b3dm").arg(node_index);
-    writeB3DM(finalName2);
+    //writeB3DM(finalName2);
     return writeGltf(finalName);
 }
 
 bool GltfBuilder::writeGltf(const QString &filename) {
 
+    QString folder("output");
+    QDir dir;
+    dir.mkdir(folder);
+    QString path = QString("%1/%2").arg(folder).arg(filename);
     tinygltf::TinyGLTF loader;
-    return loader.WriteGltfSceneToFile(&m_gltfModel, filename.toStdString(), true, true, true, true);
+    return loader.WriteGltfSceneToFile(&m_gltfModel, path.toStdString(), true, true, true, true);
 
 }
 

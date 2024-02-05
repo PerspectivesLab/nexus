@@ -19,7 +19,9 @@ _deps
 *.d
 
 # Build folder
+src/nxsbuild
 src/build-nxsbuild
+bin
 
 # Compiled Object files
 *.slo

@@ -1,4 +1,6 @@
 #include "tileset.h"
+#include <QTextStream>
+#include <fstream>
 
 void TilesetBuilder::build() {
     for(int i = 0; i < _nexusStructure.nodes.size() - 1; i++) {
@@ -7,8 +9,9 @@ void TilesetBuilder::build() {
 
     _tileset.root = _tiles[0];
     nlohmann::json test = _tileset.root.boundingVolume.toJson();
-    std::string test2 =  test.dump();
-    auto testZ = 2;
+    std::string test2 = test.dump();
+
+    write(test);
 }
 
 void TilesetBuilder::makeTile(int tileIndex) {
@@ -35,4 +38,10 @@ void TilesetBuilder::makeTile(int tileIndex) {
     }
 
     _tiles.push_back(tile);
+}
+
+void TilesetBuilder::write(const nlohmann::json &json) {
+
+    std::ofstream file("output/tileset.json");
+    file << json;
 }

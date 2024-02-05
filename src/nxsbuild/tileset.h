@@ -53,6 +53,7 @@ public:
     TilesetBuilder(NexusBuilder &nexus) : _nexusStructure(nexus) {};
     void build();
 private:
+    void write(const nlohmann::json &test);
     void makeTile(int tile_index);
     NexusBuilder& _nexusStructure;
     std::vector<Tile> _tiles;

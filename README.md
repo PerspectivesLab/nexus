@@ -1,16 +1,16 @@
-# Nexus install
+### Nexus install
 
-* Install QtCreator version 5.15.2
+	* Install QtCreator version 5.15.2
 
-* Clone nexus and vcglib in the same folder
+	* Clone nexus and vcglib in the same folder
 
 ```bash 
 git clone https://github.com/PerspectivesLab/nexus.git
 git clone https://github.com/cnr-isti-vclab/vcglib.git 
 ```
-* Open nexus\src\nxsbuild\nxsbuild.pro with QtCreator
+	* Open nexus\src\nxsbuild\nxsbuild.pro with QtCreator
 
-* Compile
+	* Compile
 
 ------------------------------------------------------------------------
 

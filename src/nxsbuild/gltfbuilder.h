@@ -28,12 +28,13 @@ class GltfBuilder
 public:
     GltfBuilder() = delete;
     GltfBuilder(NexusBuilder& nexus): m_nexusStructure(nexus) {};
-    bool writeNode(int node_index, const QString &filename);
+    bool generateTiles();
 private:
     NexusBuilder &m_nexusStructure;
     tinygltf::Model m_gltfModel;
+    bool writeNode(int node_index);
     bool writeGltf(const QString &filename);
-    bool writeB3DM(const QString & filename);
+    bool writeB3DM(const QString & filename, int node_index);
     void clearModel() { m_gltfModel = tinygltf::Model();};
 };
 

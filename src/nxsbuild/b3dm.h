@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <ostream>
+#include "deps/json.hpp"
 
 struct b3dmHeader {
     char magic[4] = {'b', '3', 'd', 'm'};
@@ -13,16 +14,24 @@ struct b3dmHeader {
     uint32_t batchTableJSONByteLength = 0;
     uint32_t batchTableBinaryByteLength = 0;
 
-    inline uint32_t size() { return ( sizeof(char) * 4 + 6 * sizeof(uint32_t) ); }
+    inline uint32_t size() { return ( 7 * 4 ); }
 };
+
 
 class b3dm
 {
 public:
     b3dm() = delete;
-    b3dm(uint32_t binaryByteLength) { _header.byteLength = _header.size() + binaryByteLength; };
+    b3dm(int binaryByteLength);
     void writeToStream(std::ostream &os);
+    std::string getEndPadding() {return _endPadding;};
+
+    bool verify();
 private:
     b3dmHeader _header;
+    std::string _featureTableHeader;
+    std::string _padding = "";
+    std::string _endPadding = "";
+
 };
 #endif // B3DM_H

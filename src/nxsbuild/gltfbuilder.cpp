@@ -5,8 +5,8 @@
 
 #include "gltfbuilder.h"
 #include "b3dm.h"
-#include  <ostream>
 #include <fstream>
+#include <limits>
 #include <unordered_map>
 #include <QDir>
 
@@ -101,7 +101,7 @@ void createGltfMaterial(tinygltf::Model &gltf, const customMaterial &material) {
     gltf.materials.emplace_back(materialGltf);
 }
 
-bool GltfBuilder::writeNode(int node_index, const QString &filename) {
+bool GltfBuilder::writeNode(int node_index) {
 
     clearModel();
     nx::Node node = m_nexusStructure.nodes[node_index];
@@ -327,41 +327,74 @@ bool GltfBuilder::writeNode(int node_index, const QString &filename) {
     sceneGltf.nodes.emplace_back(0);
     m_gltfModel.scenes.emplace_back(sceneGltf);
 
-    QString finalName = QString("mesh%1.gltf").arg(node_index);
-    QString finalName2 = QString("mesh%1.b3dm").arg(node_index);
-    //writeB3DM(finalName2);
-    return writeGltf(finalName);
-}
 
-bool GltfBuilder::writeGltf(const QString &filename) {
-
+    //QString extension = QString("%1.gltf").arg(node_index);
+    QString filename = QString("%1.b3dm").arg(node_index);
     QString folder("output");
     QDir dir;
     dir.mkdir(folder);
     QString path = QString("%1/%2").arg(folder).arg(filename);
+
+#define DEBUG_GLTF
+#ifdef DEBUG_GLTF
+    QString filename2 = QString("%1.glb").arg(node_index);
+    QString folder2("output/debug");
+    dir.mkdir(folder2);
+    QString path2 = QString("%1/%2").arg(folder2).arg(filename2);
+    writeGltf(path2);
+#endif
+    return writeB3DM(path, node_index);
+
+}
+
+bool GltfBuilder::writeGltf(const QString &path) {
+
+
     tinygltf::TinyGLTF loader;
     return loader.WriteGltfSceneToFile(&m_gltfModel, path.toStdString(), true, true, true, true);
 
 }
 
-bool GltfBuilder::writeB3DM(const QString & filename) {
+bool GltfBuilder::writeB3DM(const QString & path, int node_index) {
     tinygltf::TinyGLTF loader;
 
-    std::filebuf temp;
-    temp.open("_temp.gltf", std::ios::out);
-    std::ostream stream(&temp);
-    loader.WriteGltfSceneToStream(&m_gltfModel, stream, true , true);
-    uint32_t binarySize = stream.tellp();
+    // writing .glb file to output/temp%
+    QString tempPath = QString("output/temp%1").arg(node_index);
+    bool result = loader.WriteGltfSceneToFile(&m_gltfModel, tempPath.toStdString(), true, true, true, true);
+    if(!result) { throw QString("Error : can't write gltf to file : output/temp"); }
 
-    //effacer le fichier temporaire ?
-    b3dm b3dmFile(binarySize);
+    // looking for file size
+    std::ifstream is(tempPath.toStdString(), std::ifstream::in|std::ifstream::binary);
+    is.ignore(std::numeric_limits<std::streamsize>::max());
+    std::streamsize length = is.gcount();
+    is.clear();
+    is.seekg( 0, std::ifstream::beg);
+
+    char *buffer = new char[length];
+    is.read(buffer, length);
+    is.close();
+
+    b3dm b3dmFile(length);
     std::filebuf fb;
-    fb.open (filename.toStdString(), std::ios::out);
+    fb.open(path.toStdString(), std::ios::out|std::ios::binary);
     std::ostream os(&fb);
 
     b3dmFile.writeToStream(os);
-    loader.WriteGltfSceneToStream(&m_gltfModel, os, true , true);
+    os.write(buffer, length);
+    os.write(b3dmFile.getEndPadding().c_str(), std::streamsize(b3dmFile.getEndPadding().size()));
+    auto test = std::streamsize(b3dmFile.getEndPadding().size());
+    fb.close();
 
+     delete[] buffer;
+     return true;
+ }
+
+bool GltfBuilder::generateTiles() {
+
+    for(int i = 0; i < m_nexusStructure.nodes.size() - 1; i++)
+    {
+        writeNode(i);
+    }
     return true;
 }
 

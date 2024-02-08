@@ -8,13 +8,11 @@
 
 struct BoundingVolume
 {
-    float box[12];
+    std::array<float, 12> box = {0};
 
     nlohmann::json toJson() {
-        nlohmann::json j =
-            {"BoundingVolume",
-                            {{"box", box}}};
-
+        nlohmann::json j;
+        j ={ {"box", box }};
         return j;
     }
 };
@@ -22,28 +20,65 @@ struct BoundingVolume
 struct Content
 {
     BoundingVolume boundingVolume;
-    std::string uri;
+    bool boundVolDefined = false;
+    std::string uri = "";
     nlohmann::json toJson() {
         nlohmann::json j;
+        if(boundVolDefined)
+            j = { {"uri", uri}, {"boundingVolume", boundingVolume.toJson()}};
+        else
+            j = { {"uri", uri} };
         return j;
     }
 };
 
 struct Tile
 {
-    float transform[16];
+    float transform[16] = { 1.0, 0.0, 0.0, 0.0,
+                            0.0, 1.0, 0.0, 0.0,
+                            0.0, 0.0, 1.0, 0.0,
+                            0.0, 0.0, 0.0, 1.0};
+    bool transformDefined = false;
     BoundingVolume boundingVolume;
-    int geometricError;
-    std::string refine;
-    std::vector<Tile> children ;
+    float geometricError = 0;
+    std::string refine = "REPLACE";
+    std::vector<Tile> children;
+    Content content;
     std::vector<int> childrenIndex;
+
+    nlohmann::json toJson() {
+        std::vector<nlohmann::json> temp;
+        for (Tile child : children) {
+            temp.push_back(child.toJson());
+        }
+
+        nlohmann::json j;
+
+        if (transformDefined) j["transform"] = transform;
+        j["boundingVolume"] = boundingVolume.toJson();
+        j["geometricError"] = geometricError;
+        j["content"] = content.toJson();
+        if (refine != "") j["refine"] = refine;
+        if (temp.size()) j["children"] = temp;
+        return j;
+    }
 };
 
 struct Tileset
 {
-    std::string asset = "1.0";
+    std::string version = "1.0";
     int geometricError = 500;
     Tile root;
+
+    nlohmann::json toJson() {
+        nlohmann::json j;
+        nlohmann::json temp;
+        temp["version"] = version;
+        j["asset"] = temp;
+        j["geometricError"] = geometricError;
+        j["root"] = root.toJson();
+        return j;
+    }
 };
 
 class TilesetBuilder
@@ -51,17 +86,19 @@ class TilesetBuilder
 public:
     TilesetBuilder() = delete;
     TilesetBuilder(NexusBuilder &nexus) : _nexusStructure(nexus) {};
+    void writeMinimalTileset(int node_index);
     void build();
 private:
-    void write(const nlohmann::json &test);
+    void write(const nlohmann::json &test, const QString &path);
     void makeTile(int tile_index);
+    void fillTileset();
+    nlohmann::json getTile(int index);
+
+
+
     NexusBuilder& _nexusStructure;
     std::vector<Tile> _tiles;
     Tileset _tileset;
 };
-
-
-
-
 
 #endif // TILESET_H

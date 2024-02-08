@@ -1031,6 +1031,7 @@ void NexusBuilder::exportAsTileset(QString filename) {
 
     TilesetBuilder tileset(*this);
     tileset.build();
+    tileset.writeMinimalTileset(0);
 
     if(header.signature.vertex.hasNormals() && header.signature.face.hasIndex())
         uniformNormals();
@@ -1069,11 +1070,9 @@ void NexusBuilder::exportAsTileset(QString filename) {
     }
 
     GltfBuilder builder(*this);
+    builder.generateTiles();
 
-    for(int i = 0; i < nodes.size() - 1; i++)
-    {
-        builder.writeNode(i, filename);
-    }
+
 
 }
 

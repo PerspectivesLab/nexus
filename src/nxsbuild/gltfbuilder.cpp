@@ -42,7 +42,7 @@ void createBufferAndAccessor(tinygltf::Model &modelGltf,
     modelGltf.accessors.emplace_back(accessorGltf);
 }
 
-void createGltfTexture(const customTexture &texture,
+void createGltfTexture(const Gltf::Texture &texture,
                        tinygltf::Model &gltf,
                        std::unordered_map<tinygltf::Sampler, unsigned> *samplerCache)
 {
@@ -58,32 +58,53 @@ void createGltfTexture(const customTexture &texture,
     gltf.textures.emplace_back(textureGltf);
 }
 
-void createGltfMaterial(tinygltf::Model &gltf, const customMaterial &material) {
+void createGltfMaterial(tinygltf::Model &gltf, const Gltf::Material &material) {
+
     vcg::Point3f specularColor = material.specular;
-    float specularIntensity = specularColor[0] * 0.2125f + specularColor[1] * 0.7154f
-                              + specularColor[2] * 0.0721f;
+
+    float specularIntensity = specularColor[0] * 0.2125f
+                            + specularColor[1] * 0.7154f
+                            + specularColor[2] * 0.0721f;
 
     float roughnessFactor = material.shininess;
     roughnessFactor = material.shininess / 1000.0f;
     roughnessFactor = 1.0f - roughnessFactor;
+
     if(roughnessFactor < 0)
         roughnessFactor = 0;
     else if (roughnessFactor > 1)
         roughnessFactor = 1;
-
-    if (specularIntensity < 0.0) {
+    if (specularIntensity < 0.0)
         roughnessFactor *= (1.0f - specularIntensity);
-    }
 
     tinygltf::Material materialGltf;
     if (material.texture != -1) {
-        materialGltf.pbrMetallicRoughness.baseColorTexture.index = material.texture;
+
+        tinygltf::TextureInfo baseColorTexture;
+        baseColorTexture.index = material.texture;
+
+        // KHR_texture_transform
+        float offset_x = 0;
+        float offset_y = 1;
+        float scale_x = 1.f;
+        float scale_y = -1.f;
+
+        tinygltf::Value::Array offset;
+        offset.push_back(tinygltf::Value(offset_x));
+        offset.push_back(tinygltf::Value(offset_y));
+        tinygltf::Value::Array scale;
+        scale.push_back(tinygltf::Value(scale_x));
+        scale.push_back(tinygltf::Value(scale_y));
+        tinygltf::Value::Object v;
+        v["offset"] = tinygltf::Value(offset);
+        v["scale"] = tinygltf::Value(scale);
+
+        baseColorTexture.extensions["KHR_texture_transform"] = tinygltf::Value(v);
+        materialGltf.pbrMetallicRoughness.baseColorTexture = baseColorTexture;
     }
 
     materialGltf.doubleSided = material.doubleSided;
     materialGltf.alphaMode = "MASK";
-
-    // verifier quand cette condition est vérifiée
 
     if (!(material.diffuse[0] == 0 && material.diffuse[1] == 0 && material.diffuse[2] == 0)) {
         materialGltf.pbrMetallicRoughness.baseColorFactor = {material.diffuse[0],
@@ -101,50 +122,50 @@ void createGltfMaterial(tinygltf::Model &gltf, const customMaterial &material) {
     gltf.materials.emplace_back(materialGltf);
 }
 
-bool GltfBuilder::writeNode(int node_index) {
+void GltfBuilder::exportNodeAsTile(int node_index) {
 
     clearModel();
-    nx::Node node = m_nexusStructure.nodes[node_index];
-    customTexture customTex;
-    customMaterial customMat;
+    nx::Node &node = m_nexus.nodes[node_index];
+    Gltf::Texture customTex;
+    Gltf::Material customMat;
 
-    m_gltfModel.asset.version = "2.0";
+    m_model.asset.version = "2.0";
 
+    m_model.extensionsUsed.emplace_back("KHR_texture_transform");
     if (customMat.unlit) {
-        m_gltfModel.extensionsUsed.emplace_back("KHR_materials_unlit");
+        m_model.extensionsUsed.emplace_back("KHR_materials_unlit");
     }
 
     // create root nodes
     tinygltf::Node rootNodeGltf;
     rootNodeGltf.matrix = {1, 0, 0, 0, 0, 0, -1, 0, 0, 1, 0, 0, 0, 0, 0, 1};
-    m_gltfModel.nodes.emplace_back(rootNodeGltf);
+    m_model.nodes.emplace_back(rootNodeGltf);
     int rootIndex = 0;
 
-    // create buffer
-    size_t totalBufferSize = node.nvert * m_nexusStructure.header.signature.vertex.size()
-                           + node.nface * m_nexusStructure.header.signature.face.size();
+    // create geometry buffer
+    size_t totalBufferSize = node.nvert * m_nexus.header.signature.vertex.size()
+                           + node.nface * m_nexus.header.signature.face.size();
     tinygltf::Buffer bufferGltf;
     auto &bufferData = bufferGltf.data;
     bufferData.resize(totalBufferSize);
 
-    // add mesh ///////////////////////////////////////////////////////////
-
+    // add geometry
     tinygltf::Primitive primitiveGltf;
     primitiveGltf.mode = TINYGLTF_MODE_TRIANGLES;
-    primitiveGltf.material = m_gltfModel.materials.size();
+    primitiveGltf.material = m_model.materials.size();
 
     size_t offset = 0;
     size_t nextSize = 0;
-    auto bufferIndex = m_gltfModel.buffers.size();
+    auto bufferIndex = m_model.buffers.size();
 
     uint32_t chunk = node.offset;
-    uchar *buffer  = m_nexusStructure.chunks.getChunk(chunk, false);
+    uchar *buffer  = m_nexus.chunks.getChunk(chunk, false);
 
     if (node.nvert != 0) {
         vcg::Point3f *point = (vcg::Point3f *)buffer;
         nextSize = node.nvert * sizeof(vcg::Point3f);
 
-        createBufferAndAccessor(m_gltfModel,
+        createBufferAndAccessor(m_model,
                                 bufferData.data() + offset,
                                 point,
                                 bufferIndex,
@@ -155,27 +176,23 @@ bool GltfBuilder::writeNode(int node_index) {
                                 TINYGLTF_COMPONENT_TYPE_FLOAT,
                                 TINYGLTF_TYPE_VEC3);
 
-        auto box = m_nexusStructure.boxes[node_index].box;
-        auto &positionsAccessor = m_gltfModel.accessors.back();
+        auto box = m_nexus.boxes[node_index].box;
+        auto &positionsAccessor = m_model.accessors.back();
         positionsAccessor.minValues = {box.min[0], box.min[1], box.min[2]};
         positionsAccessor.maxValues = {box.max[0], box.max[1], box.max[2]};
-        // positionsAccessor.minValues = {18.252765655517578, 21.16315269470215, -691.7335815429688};
-        // positionsAccessor.maxValues = {51.3943977355957, 67.9502182006836, -647.491943359375};
 
-        primitiveGltf.attributes["POSITION"] = static_cast<int>(m_gltfModel.accessors.size() - 1);
+        primitiveGltf.attributes["POSITION"] = static_cast<int>(m_model.accessors.size() - 1);
         offset += nextSize;
     }
-    else {
-        throw QString("No mesh data");
-        return -1;
-    }
+    else throw QString("No mesh data");
 
-    if(m_nexusStructure.header.signature.vertex.hasTextures()) {
+
+    if(m_nexus.header.signature.vertex.hasTextures()) {
         size_t uvOffset = sizeof(vcg::Point3f) * node.nvert;
         vcg::Point2f *uv = (vcg::Point2f *)(buffer + uvOffset);
         nextSize = node.nvert * sizeof(vcg::Point2f);
 
-        createBufferAndAccessor(m_gltfModel,
+        createBufferAndAccessor(m_model,
                                 bufferData.data() + offset,
                                 uv,
                                 bufferIndex,
@@ -185,44 +202,42 @@ bool GltfBuilder::writeNode(int node_index) {
                                 node.nvert,
                                 TINYGLTF_COMPONENT_TYPE_FLOAT,
                                 TINYGLTF_TYPE_VEC2);
-        primitiveGltf.attributes["TEXCOORD_0"] = static_cast<int>(m_gltfModel.accessors.size() - 1);
+        primitiveGltf.attributes["TEXCOORD_0"] = static_cast<int>(m_model.accessors.size() - 1);
         offset += nextSize;
 
 //#define DEBUG_UV
 #ifdef DEBUG_UV
+        QFile debugUV;
         for(int i = 0; i < node.nvert; i++)
         {
             vcg::Point2f UV = *(uv + i);
             float x = UV.X();
             float y = UV.Y();
-            float fin = 8.0000001f;
         }
 #endif
     }
 
-
-
-    if(m_nexusStructure.header.signature.vertex.hasNormals()) {
-        size_t normalOffset = sizeof(vcg::Point3f) + m_nexusStructure.header.signature.vertex.hasTextures() * sizeof(vcg::Point2f);
+    if(m_nexus.header.signature.vertex.hasNormals()) {
+        size_t normalOffset = sizeof(vcg::Point3f) + m_nexus.header.signature.vertex.hasTextures() * sizeof(vcg::Point2f);
         vcg::Point3s *normal = (vcg::Point3s *)(buffer + normalOffset * node.nvert);
 
-        // A IMPLEMENTER
+        // TODO
     }
 
-    if(m_nexusStructure.header.signature.vertex.hasColors()) {
-        size_t vertexColorOffset = sizeof(vcg::Point3f) + m_nexusStructure.header.signature.vertex.hasTextures() * sizeof(vcg::Point2f)
-                                   + m_nexusStructure.header.signature.vertex.hasNormals() * sizeof(vcg::Point3s);
+    if(m_nexus.header.signature.vertex.hasColors()) {
+        size_t vertexColorOffset = sizeof(vcg::Point3f) + m_nexus.header.signature.vertex.hasTextures() * sizeof(vcg::Point2f)
+                                   + m_nexus.header.signature.vertex.hasNormals() * sizeof(vcg::Point3s);
         uchar *color =  buffer + vertexColorOffset;
 
-        // IMPLEMENTER ???
+        // TODO
     }
 
-    if (node.nface !=0) {
-        size_t facesOffset = m_nexusStructure.header.signature.vertex.size() * node.nvert;
+    if (node.nface != 0) {
+        size_t facesOffset = m_nexus.header.signature.vertex.size() * node.nvert;
         uint16_t *face = (uint16_t *)(buffer + facesOffset);
 
         nextSize = node.nface * 3 * sizeof(uint16_t);
-        createBufferAndAccessor(m_gltfModel,
+        createBufferAndAccessor(m_model,
                                 bufferData.data() + offset,
                                 face,
                                 bufferIndex,
@@ -233,134 +248,122 @@ bool GltfBuilder::writeNode(int node_index) {
                                 TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT,
                                 TINYGLTF_TYPE_SCALAR);
 
-        primitiveGltf.indices = static_cast<int>(m_gltfModel.accessors.size() - 1);
-        offset += nextSize;
+        primitiveGltf.indices = static_cast<int>(m_model.accessors.size() - 1);
     }
 
-
     // add buffer to gltf model
-    m_gltfModel.buffers.emplace_back(bufferGltf);
+    m_model.buffers.emplace_back(bufferGltf);
 
     // add image data to a second buffer
     // then add an image and a texture to gltf model
-    if(m_nexusStructure.textures.size()) {
+    if(m_nexus.textures.size()) {
 
-        if(m_nexusStructure.useNodeTex) {
+        if(m_nexus.useNodeTex) {
 
-            if(m_nexusStructure.header.signature.flags & nx::Signature::Flags::DEEPZOOM) {
+            int indice = m_nexus.patches[node.first_patch].texture;
+            quint32 s = m_nexus.textures[indice].offset * NEXUS_PADDING;
+            quint32 size = m_nexus.textures[indice + 1].offset * NEXUS_PADDING - s;
+            m_nexus.nodeTex.seek(s);
+            auto buffer = m_nexus.nodeTex.read(size);
 
+            tinygltf::Buffer buffer_builder;
+            auto &imageBufferData = buffer_builder.data;
+            imageBufferData.resize(size);
+            std::memcpy(imageBufferData.data(), buffer, size);
+            auto bufferIndex = m_model.buffers.size();
+            m_model.buffers.emplace_back(buffer_builder);
 
-                //int indice = m_nexusStructure.textures.size() - 2 - node_index;
-                int indice = m_nexusStructure.patches[node.first_patch].texture;
+            tinygltf::BufferView bufferView_builder;
+            bufferView_builder.buffer = bufferIndex;
+            bufferView_builder.byteLength = size;
+            auto imageBufferViewIndex = (int)m_model.bufferViews.size();
+            m_model.bufferViews.push_back(bufferView_builder);
 
-                quint32 s = m_nexusStructure.textures[indice].offset * NEXUS_PADDING;
-                quint32 size = m_nexusStructure.textures[indice + 1].offset * NEXUS_PADDING - s;
-                m_nexusStructure.nodeTex.seek(s);
-                auto buffer = m_nexusStructure.nodeTex.read(size);
+            tinygltf::Image img;
+            img.mimeType = "image/jpeg";
+            img.bufferView = imageBufferViewIndex;
+            int imageIndex = m_model.images.size();
+            m_model.images.emplace_back(img);
+            customTex.source = imageIndex;
 
-                tinygltf::Buffer buffer_builder;
-                auto &imageBufferData = buffer_builder.data;
-                imageBufferData.resize(size);
-                std::memcpy(imageBufferData.data(), buffer, size);
-                auto bufferIndex = m_gltfModel.buffers.size();
-                m_gltfModel.buffers.emplace_back(buffer_builder);
-
-
-                tinygltf::BufferView bufferView_builder;
-                bufferView_builder.buffer = bufferIndex;
-                bufferView_builder.byteLength = size;
-                auto imageBufferViewIndex = (int)m_gltfModel.bufferViews.size();
-                m_gltfModel.bufferViews.push_back(bufferView_builder);
-
-                tinygltf::Image img;
-                // img.width = 1093;
-                // img.height = 146;
-                img.mimeType = "image/jpeg";
-                img.bufferView = imageBufferViewIndex;
-                int imageIndex = m_gltfModel.images.size();
-                m_gltfModel.images.emplace_back(img);
-                customTex.source = imageIndex;
-
-                createGltfTexture(customTex, m_gltfModel, nullptr);
-                auto textureIndex = m_gltfModel.textures.size() - 1;
-                customMat.texture = static_cast<int>(textureIndex);
-
+            createGltfTexture(customTex, m_model, nullptr);
+            auto textureIndex = m_model.textures.size() - 1;
+            customMat.texture = static_cast<int>(textureIndex);
 #define DEBUG_TEXTURE
 #ifdef DEBUG_TEXTURE
-                QString testFolder("textureTestFolder");
-                QDir dir;
-                dir.mkdir(testFolder);
-                QString texfileName = QString("%1/%2.jpg").arg(testFolder).arg(node_index);
-                QFile texfile(texfileName);
-                if(!texfile.open(QFile::WriteOnly)) {
-                    throw QString("Error while opening %1").arg(texfileName);
-                }
-                texfile.write(buffer);
-                texfile.close();
-#endif
-            }
-            else {
+            QString output("output");
+            QString debug("output/debug");
+            QString testFolder("output/debug/textures");
+            QDir dir;
+            dir.mkdir(output);
+            dir.mkdir(debug);
+            dir.mkdir(testFolder);
 
+            QString texfileName = QString("%1/%2.jpg").arg(testFolder).arg(node_index);
+            QFile texfile(texfileName);
+            if(!texfile.open(QFile::WriteOnly)) {
+                throw QString("Error while opening %1").arg(texfileName);
             }
+            bool success = texfile.write(buffer, size);
+            if(!success)
+                throw QString("failed writing texture data from temporary file.");
+            texfile.close();
+#endif
         }
+        else { /* keep original texture : TODO*/ }
     }
 
     // add material
-    createGltfMaterial(m_gltfModel, customMat);
+    createGltfMaterial(m_model, customMat);
 
     // add mesh
     tinygltf::Mesh meshGltf;
     meshGltf.primitives.emplace_back(primitiveGltf);
-    m_gltfModel.meshes.emplace_back(meshGltf);
+    m_model.meshes.emplace_back(meshGltf);
 
     // create node
     tinygltf::Node meshNode;
-    meshNode.mesh = static_cast<int>(m_gltfModel.meshes.size() - 1);
+    meshNode.mesh = static_cast<int>(m_model.meshes.size() - 1);
     //meshNode.translation = {center.x, center.y, center.z};
-    m_gltfModel.nodes.emplace_back(meshNode);
+    m_model.nodes.emplace_back(meshNode);
 
     // add node to the root
-    m_gltfModel.nodes[rootIndex].children.emplace_back(m_gltfModel.nodes.size() - 1);
+    m_model.nodes[rootIndex].children.emplace_back(m_model.nodes.size() - 1);
 
     // create scene
     tinygltf::Scene sceneGltf;
     sceneGltf.nodes.emplace_back(0);
-    m_gltfModel.scenes.emplace_back(sceneGltf);
+    m_model.scenes.emplace_back(sceneGltf);
 
-
-    //QString extension = QString("%1.gltf").arg(node_index);
     QString filename = QString("%1.b3dm").arg(node_index);
+    QString filename2 = QString("%1.glb").arg(node_index);
     QString folder("output");
+
     QDir dir;
     dir.mkdir(folder);
     QString path = QString("%1/%2").arg(folder).arg(filename);
+    writeB3DM(path);
 
 #define DEBUG_GLTF
 #ifdef DEBUG_GLTF
-    QString filename2 = QString("%1.glb").arg(node_index);
-    QString folder2("output/debug");
-    dir.mkdir(folder2);
-    QString path2 = QString("%1/%2").arg(folder2).arg(filename2);
-    writeGltf(path2);
-#endif
-    return writeB3DM(path, node_index);
-
+    QString debug_folder("output/debug");
+    dir.mkdir(debug_folder);
+    QString debug_path = QString("%1/%2").arg(debug_folder).arg(filename2);
+    writeGLB(debug_path);
+#endif  
 }
 
-bool GltfBuilder::writeGltf(const QString &path) {
-
-
+void GltfBuilder::writeGLB(const QString &path) {
     tinygltf::TinyGLTF loader;
-    return loader.WriteGltfSceneToFile(&m_gltfModel, path.toStdString(), true, true, true, true);
-
+    loader.WriteGltfSceneToFile(&m_model, path.toStdString(), true, true, true, true);
 }
 
-bool GltfBuilder::writeB3DM(const QString & path, int node_index) {
+void GltfBuilder::writeB3DM(const QString & path) {
     tinygltf::TinyGLTF loader;
 
     // writing .glb file to output/temp%
-    QString tempPath = QString("output/temp%1").arg(node_index);
-    bool result = loader.WriteGltfSceneToFile(&m_gltfModel, tempPath.toStdString(), true, true, true, true);
+    QString tempPath = QString("output/temp");
+    bool result = loader.WriteGltfSceneToFile(&m_model, tempPath.toStdString(), true, true, true, true);
     if(!result) { throw QString("Error : can't write gltf to file : output/temp"); }
 
     // looking for file size
@@ -369,32 +372,25 @@ bool GltfBuilder::writeB3DM(const QString & path, int node_index) {
     std::streamsize length = is.gcount();
     is.clear();
     is.seekg( 0, std::ifstream::beg);
-
     char *buffer = new char[length];
     is.read(buffer, length);
     is.close();
-
     b3dm b3dmFile(length);
     std::filebuf fb;
     fb.open(path.toStdString(), std::ios::out|std::ios::binary);
     std::ostream os(&fb);
-
     b3dmFile.writeToStream(os);
     os.write(buffer, length);
     os.write(b3dmFile.getEndPadding().c_str(), std::streamsize(b3dmFile.getEndPadding().size()));
-    auto test = std::streamsize(b3dmFile.getEndPadding().size());
     fb.close();
+    QFile::remove(tempPath);
 
      delete[] buffer;
-     return true;
  }
 
-bool GltfBuilder::generateTiles() {
+void GltfBuilder::generateTiles() {
 
-    for(int i = 0; i < m_nexusStructure.nodes.size() - 1; i++)
-    {
-        writeNode(i);
-    }
-    return true;
+    for (uint i = 0; i < m_nexus.nodes.size() - 1; i++)
+        exportNodeAsTile(i);
 }
 

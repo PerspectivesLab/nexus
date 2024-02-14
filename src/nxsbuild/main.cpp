@@ -107,7 +107,7 @@ int main(int argc, char *argv[]) {
 
 	//format options
 	opt.addSwitch('p', "point cloud", "generate a multiresolution point cloud (needed only to discard faces)", &point_cloud);
-    opt.addSwitch('e', "export tile", "export model as a 3D tile", &tileset);
+    opt.addSwitch('e', "export tileset", "export model as a 3D tileset", &tileset);
 
 	opt.addSwitch('N', "normals", "force per vertex normals, even in point clouds", &normals);
 	opt.addSwitch('n', "no normals", "do not store per vertex normals", &no_normals);

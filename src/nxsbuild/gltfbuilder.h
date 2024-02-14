@@ -4,7 +4,8 @@
 #include "deps/tiny_gltf.h"
 #include "nexusbuilder.h"
 
-struct customTexture {
+namespace Gltf {
+struct Texture {
 
     std::string uri = "";
     int source = -1;
@@ -12,7 +13,7 @@ struct customTexture {
     int magFilter = TINYGLTF_TEXTURE_FILTER_LINEAR;
 };
 
-struct customMaterial {
+struct Material {
     vcg::Point3f specular {0, 0, 0};
     vcg::Point3f diffuse {0, 0, 0};
     float shininess  = 0;
@@ -20,22 +21,25 @@ struct customMaterial {
     int texture = -1;
     bool doubleSided = true;
     bool unlit = true;
-
 };
+}
+
 
 class GltfBuilder
 {
 public:
     GltfBuilder() = delete;
-    GltfBuilder(NexusBuilder& nexus): m_nexusStructure(nexus) {};
-    bool generateTiles();
+    GltfBuilder(NexusBuilder& nexus): m_nexus(nexus) {};
+    void generateTiles();
 private:
-    NexusBuilder &m_nexusStructure;
-    tinygltf::Model m_gltfModel;
-    bool writeNode(int node_index);
-    bool writeGltf(const QString &filename);
-    bool writeB3DM(const QString & filename, int node_index);
-    void clearModel() { m_gltfModel = tinygltf::Model();};
+    NexusBuilder &m_nexus;
+    tinygltf::Model m_model;
+    void clearModel() { m_model = tinygltf::Model();};
+    void exportNodeAsTile(int node_index);
+    void writeB3DM(const QString & filename);
+
+    // debug
+    void writeGLB(const QString &filename);
 };
 
 #endif // GLTFBUILDER_H

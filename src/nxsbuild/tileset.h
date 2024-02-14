@@ -81,24 +81,22 @@ struct Tileset
     }
 };
 
-class TilesetBuilder
+class TilesetJSON
 {
 public:
-    TilesetBuilder() = delete;
-    TilesetBuilder(NexusBuilder &nexus) : _nexusStructure(nexus) {};
-    void writeMinimalTileset(int node_index);
-    void build();
+    TilesetJSON() = delete;
+    TilesetJSON(NexusBuilder &nexus) : m_nexus(nexus) {};
+    void generate();
+
+    //debug
+    void writeMinimalTilesetJSON(int node_index);
+
 private:
-    void write(const nlohmann::json &test, const QString &path);
-    void makeTile(int tile_index);
-    void fillTileset();
-    nlohmann::json getTile(int index);
+    NexusBuilder& m_nexus;
+    std::vector<Tile> m_tiles;
 
-
-
-    NexusBuilder& _nexusStructure;
-    std::vector<Tile> _tiles;
-    Tileset _tileset;
+    void makeTileObject(int tile_index);
+    void addChildren();
 };
 
 #endif // TILESET_H

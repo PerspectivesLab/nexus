@@ -105,7 +105,7 @@ public:
 
 	void reverseDag();
 	void save(QString filename);
-    void exportAsTileset(QString filename);
+	void exportAsTileset();
 
 	QMutex m_input;     //locks input stream when building nodes multithread
 	QMutex m_output;    //locks output stream stream when building nodes multithread

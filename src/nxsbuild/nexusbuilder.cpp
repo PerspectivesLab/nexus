@@ -1024,7 +1024,7 @@ void NexusBuilder::save(QString filename) {
 	file.close();
 }
 
-void NexusBuilder::exportAsTileset(QString filename) {
+void NexusBuilder::exportAsTileset() {
 
     if(header.signature.vertex.hasNormals() && header.signature.face.hasIndex())
         uniformNormals();

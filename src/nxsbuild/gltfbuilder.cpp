@@ -276,7 +276,6 @@ void GltfBuilder::exportNodeAsTile(int node_index) {
 			bufferView_builder.byteLength = size;
 			auto imageBufferViewIndex = (int)m_model.bufferViews.size();
 			m_model.bufferViews.push_back(bufferView_builder);
-
 			tinygltf::Image img;
 			img.mimeType = "image/jpeg";
 			img.bufferView = imageBufferViewIndex;
@@ -287,7 +286,7 @@ void GltfBuilder::exportNodeAsTile(int node_index) {
 			createGltfTexture(customTex, m_model, nullptr);
 			auto textureIndex = m_model.textures.size() - 1;
 			customMat.texture = static_cast<int>(textureIndex);
-#define DEBUG_TEXTURE
+//#define DEBUG_TEXTURE
 #ifdef DEBUG_TEXTURE
 			QString output("output");
 			QString debug("output/debug");
@@ -342,7 +341,7 @@ void GltfBuilder::exportNodeAsTile(int node_index) {
 	QString path = QString("%1/%2").arg(folder).arg(filename);
 	writeB3DM(path);
 
-#define DEBUG_GLTF
+//#define DEBUG_GLTF
 #ifdef DEBUG_GLTF
 	QString debug_folder("output/debug");
 	dir.mkdir(debug_folder);
